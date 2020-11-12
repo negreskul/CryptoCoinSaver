@@ -1,16 +1,14 @@
 ﻿using System;
 using System.IO;
 using System.Net;
-using System.Text.Json;
-using System.Text.Json.Serialization;
+using Newtonsoft.Json;
 using System.Collections.Generic;
 
 namespace CryptoCoinSaver
 {
     class Program
     {
-        private static String CRYPTOCOMPARE_API_KEY = "4f9000235719c664092cacb8f4ceeec8da270d0227a11f36da3062212255f0f2";
-        private static String NOMICS_API_KEY = "e16fd774b68d3d460d63240eef1ba0b8";
+        private static String ALPHA_VANTAGE_API_KEY = "XXGM6QUJN5T5J9W9";
         static void Main(string[] args)
         {
             DownloadCryptoCurrencyInfo();
@@ -18,44 +16,72 @@ namespace CryptoCoinSaver
 
         private static void DownloadCryptoCurrencyInfo()
         {
-            var currencyList = new string[] { "BTC", "ETH", "USDT", "XRP", "BСH", "LINK", "BNB", "AUD" };
-            var resultDictionary = new Dictionary<string, ExchangeRatesHistory[]>();
+            var currencyList = new string[] { "BTC", "ETH", "XRP","BCH", "LTC" };
+            var resultDictionary = new Dictionary<string, ApiResponse>();
 
             foreach (var currency in currencyList)
             {
-                WebRequest request = WebRequest.Create($"https://api.nomics.com/v1/exchange-rates/history?key={NOMICS_API_KEY}&currency={currency}&start=2020-11-01T00:00:00Z&end=2020-11-08T00:00:00Z");
-
+                Console.WriteLine($"Запрос отправлен: {currency}");
+                WebRequest request = WebRequest.Create($"https://www.alphavantage.co/query?function=DIGITAL_CURRENCY_DAILY&symbol={currency}&market=USD&apikey={ALPHA_VANTAGE_API_KEY}");
                 WebResponse response = request.GetResponse();
 
-                ExchangeRatesHistory[] responseModel;
+                ApiResponse responseModel;
 
                 using (Stream stream = response.GetResponseStream())
                 {
                     using (StreamReader reader = new StreamReader(stream))
                     {
                         var data = reader.ReadToEnd();
-                        Console.WriteLine(currency);
-                        Console.WriteLine(data);
-                        responseModel = JsonSerializer.Deserialize<ExchangeRatesHistory[]>(data); //десереализация из стоки в модель
+                        //Console.WriteLine(currency);
+                        //Console.WriteLine(data.Substring(0, 100));
+                        //десереализация из стоки в модель
+                        responseModel = JsonConvert.DeserializeObject<ApiResponse>(data);
                     }
                 }
 
                 resultDictionary.Add(currency, responseModel);
 
                 response.Close();
+
+                Console.WriteLine($"Ответ получен: {currency}");
             }
+
+            foreach (var currency in currencyList)
+            {
+                Console.WriteLine(currency);
+                Console.WriteLine("2020-11-10");
+                Console.WriteLine(resultDictionary[currency].mainData["2020-11-10"]);
+                Console.WriteLine();
+            }
+                
         }
     }
 
-    public class ExchangeRatesHistory
+    public class ApiResponse
     {
-        public DateTime Timestamp { get; set; }
-        public string Rate { get; set; }
+        [JsonProperty("Meta Data")]
+        public Dictionary<string, dynamic> metaData { get; set; }
+
+        [JsonProperty("Time Series (Digital Currency Daily)")]
+        public Dictionary<string, DigitalCurrencyDaily> mainData { get; set; }
     }
 
-    //public class MyClass
-    //{
-    //    public double USD { get; set; }
-    //    public double EUR { get; set; }
-    //}
+    public class DigitalCurrencyDaily
+    {
+        [JsonProperty("1b. open (USD)")]
+        public double open { get; set; }
+        [JsonProperty("2b. high (USD)")]
+        public double high { get; set; }
+        [JsonProperty("3b. low (USD)")]
+        public double low { get; set; }
+        [JsonProperty("4b. close (USD)")]
+        public double close { get; set; }
+        [JsonProperty("5. volume")]
+        public double volume { get; set; }
+
+        public override string ToString()
+        {
+            return $"Open: {open}\nHigh: {high}\nLow: {low}\nClose: {close}\nVolume: {volume}";
+        }
+    }
 }
