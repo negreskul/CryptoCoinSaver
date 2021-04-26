@@ -8,16 +8,46 @@ namespace CryptoCoinSaver
 {
     class Program
     {
+        private static String METALS_API_KEY = "9mnbcp3pwmybgyjtk9n656bpkh9du3t7mmkmmmvzl6l45w911ly656yiyzio";
         private static String ALPHA_VANTAGE_API_KEY = "XXGM6QUJN5T5J9W9"; //ключ
         static void Main(string[] args)
         {
-            var currencyList = new string[] { "BTC", "ETH", "XRP", "BCH", "XLM", "LTC", "ADA", "BNB", "LINK"};
+            var currencyList = new string[] { "BTC", "ETH", "XRP", "XLM", "LTC", "ADA", "BNB" };
             var resultDictionary = new Dictionary<string, ApiResponse>();
-            DownloadCryptoCurrencyInfo(currencyList, resultDictionary);
-            WriteToCSV(currencyList, resultDictionary);
+            var goldResultDictionary = new Dictionary<string, MetalsApiResponse>();
+            DownloadGoldInfo(goldResultDictionary);
+            WriteGoldToCSV(goldResultDictionary);
+            //DownloadCryptoCurrencyInfo(currencyList, resultDictionary);
+            //WriteToCSV(currencyList, resultDictionary);
             //WriteToConsole(currencyList, resultDictionary);
         }
+        private static void DownloadGoldInfo(Dictionary<string, MetalsApiResponse> resultDictionary)
+        {
+            var endDate = DateTime.Now.AddDays(-1).ToString("yyyy'-'MM'-'dd");
+            Console.WriteLine($"Запрос отправлен: GOLD");
+            WebRequest request = WebRequest.Create($"https://metals-api.com/api/timeseries?access_key={METALS_API_KEY}&start_date=2018-08-02&end_date={endDate}&base=XAU&symbols=USD");
+            WebResponse response = request.GetResponse();
 
+            Console.WriteLine($"Ответ получен: GOLD");
+
+            MetalsApiResponse responseModel;
+
+            using (Stream stream = response.GetResponseStream())
+            {
+                using (StreamReader reader = new StreamReader(stream))
+                {
+                    var data = reader.ReadToEnd();
+                    responseModel = JsonConvert.DeserializeObject<MetalsApiResponse>(data);
+                }
+            }
+
+            resultDictionary.Add("GOLD", responseModel);
+
+            response.Close();
+
+            Console.WriteLine($"Десериализация завершена: GOLD");
+
+        }
         private static void DownloadCryptoCurrencyInfo(string[] currencyList, Dictionary<string, ApiResponse> resultDictionary)
         {
 
@@ -74,10 +104,51 @@ namespace CryptoCoinSaver
                 }
             }
         }
+        public static void WriteGoldToCSV(Dictionary<string, MetalsApiResponse> resultDictionary)
+        {
+            string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string writePath = @$"{baseDirectory}\GoldPriceUSD.csv";
+
+            var dateForCycle = DateTime.Now.AddDays(-1);
+            var firstDay = new DateTime(2018, 8, 2);
+            try
+            {
+                using (StreamWriter sw = new StreamWriter(writePath, false, System.Text.Encoding.Default))
+                {
+                    sw.WriteLine("Date,GOLD");
+                    while (dateForCycle > firstDay)
+                    {
+                        var formattedDateForCycle = dateForCycle.ToString("yyyy-MM-dd");
+                        sw.Write(formattedDateForCycle);
+
+
+                        sw.Write(",");
+                        if (resultDictionary["GOLD"]?.rates == null || !resultDictionary["GOLD"].rates.ContainsKey(formattedDateForCycle))
+                        {
+                            sw.Write("null");
+                        }
+                        else
+                        {
+                            var stringToWrite = resultDictionary["GOLD"].rates[formattedDateForCycle].USD.ToString();
+                            sw.Write(stringToWrite.Replace(",", "."));
+                        }
+
+                        sw.WriteLine();
+                        dateForCycle = dateForCycle.AddDays(-1);
+                    }
+                }
+                Console.WriteLine("done");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+        }
         public static void WriteToCSV(string[] currencyList, Dictionary<string, ApiResponse> resultDictionary)
         {
             string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            string writePath = @$"{baseDirectory}\CryptoCoinHigh_BCH_XLM_LTC.csv";
+            string writePath = @$"{baseDirectory}\CryptoCoinHigh.csv";
 
             var dateForCycle = DateTime.Now.AddDays(-1);
             var firstDay = DateTime.Now.AddDays(-999);
@@ -85,7 +156,7 @@ namespace CryptoCoinSaver
             {
                 using (StreamWriter sw = new StreamWriter(writePath, false, System.Text.Encoding.Default))
                 {
-                    sw.WriteLine("Date,BCH,ETH,XRP,BCH,XLM,LTC,ADA,BNB,LINK");
+                    sw.WriteLine($"Date,{string.Join(",", currencyList)}");
                     while (dateForCycle > firstDay)
                     {
                         var formattedDateForCycle = dateForCycle.ToString("yyyy-MM-dd");
@@ -116,6 +187,18 @@ namespace CryptoCoinSaver
             }
 
         }
+    }
+
+    public class MetalsApiResponse
+    {
+        [JsonProperty("rates")]
+        public Dictionary<string, MetalsDaily> rates { get; set; }
+    }
+
+    public class MetalsDaily
+    {
+        [JsonProperty("USD")]
+        public double USD { get; set; }
     }
 
     public class ApiResponse
