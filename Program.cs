@@ -12,14 +12,15 @@ namespace CryptoCoinSaver
         private static String ALPHA_VANTAGE_API_KEY = "XXGM6QUJN5T5J9W9"; //ключ
         static void Main(string[] args)
         {
-            var currencyList = new string[] { "BTC", "ETH", "XRP", "XLM", "LTC", "ADA", "BNB" };
+            var currencyList = new string[] { "BTC"/*, "ETH", "XRP", "XLM", "LTC", "ADA", "BNB"*/ };
             var resultDictionary = new Dictionary<string, ApiResponse>();
-            var goldResultDictionary = new Dictionary<string, MetalsApiResponse>();
-            DownloadGoldInfo(goldResultDictionary);
-            WriteGoldToCSV(goldResultDictionary);
-            //DownloadCryptoCurrencyInfo(currencyList, resultDictionary);
+            //var goldResultDictionary = new Dictionary<string, MetalsApiResponse>();
+            //DownloadGoldInfo(goldResultDictionary);
+            //WriteGoldToCSV(goldResultDictionary);
+            DownloadCryptoCurrencyInfo(currencyList, resultDictionary);
             //WriteToCSV(currencyList, resultDictionary);
             //WriteToConsole(currencyList, resultDictionary);
+            WriteCurrencyToCSV("BTC", resultDictionary["BTC"]);
         }
         private static void DownloadGoldInfo(Dictionary<string, MetalsApiResponse> resultDictionary)
         {
@@ -177,6 +178,57 @@ namespace CryptoCoinSaver
                         }
                         sw.WriteLine();
                         dateForCycle = dateForCycle.AddDays(-1);
+                    }
+                }
+                Console.WriteLine("done");
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+            }
+
+        }
+        public static void WriteCurrencyToCSV(string currency, ApiResponse apiResponse)
+        {
+            string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
+            string writePath = @$"{baseDirectory}\{currency}.csv";
+
+            var lastDay = DateTime.Now.AddDays(-1);
+            var firstDay = DateTime.Now.AddDays(-999);
+            try
+            {
+                using (StreamWriter sw = new StreamWriter(writePath, false, System.Text.Encoding.Default))
+                {
+                    sw.WriteLine($"Date,Open,High,Low,Close,Volume");
+                    while (lastDay > firstDay)
+                    {
+                        var formattedDateForCycle = firstDay.ToString("yyyy-MM-dd");
+                        sw.Write(formattedDateForCycle);
+
+                        sw.Write(",");
+                        if (apiResponse?.mainData == null || !apiResponse.mainData.ContainsKey(formattedDateForCycle))
+                        {
+                            sw.Write("null");
+                        }
+                        else
+                        {
+                            var stringToWrite = apiResponse.mainData[formattedDateForCycle].open.ToString();
+                            sw.Write(stringToWrite.Replace(",", "."));
+                            sw.Write(",");
+                            stringToWrite = apiResponse.mainData[formattedDateForCycle].high.ToString();
+                            sw.Write(stringToWrite.Replace(",", "."));
+                            sw.Write(",");
+                            stringToWrite = apiResponse.mainData[formattedDateForCycle].low.ToString();
+                            sw.Write(stringToWrite.Replace(",", "."));
+                            sw.Write(",");
+                            stringToWrite = apiResponse.mainData[formattedDateForCycle].close.ToString();
+                            sw.Write(stringToWrite.Replace(",", "."));
+                            sw.Write(",");
+                            stringToWrite = apiResponse.mainData[formattedDateForCycle].volume.ToString();
+                            sw.Write(stringToWrite.Replace(",", "."));
+                        }
+                        sw.WriteLine();
+                        firstDay = firstDay.AddDays(1);
                     }
                 }
                 Console.WriteLine("done");
