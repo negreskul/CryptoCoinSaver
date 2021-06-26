@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Threading;
 
 namespace CryptoCoinSaver
 {
@@ -12,15 +13,15 @@ namespace CryptoCoinSaver
         private static String ALPHA_VANTAGE_API_KEY = "XXGM6QUJN5T5J9W9"; //ключ
         static void Main(string[] args)
         {
-            var currencyList = new string[] { "BTC"/*, "ETH", "XRP", "XLM", "LTC", "ADA", "BNB"*/ };
+            var currencyList = new string[] { "BTC", "ETH", "XRP", "XLM", "LTC", "ADA" };
             var resultDictionary = new Dictionary<string, ApiResponse>();
             //var goldResultDictionary = new Dictionary<string, MetalsApiResponse>();
             //DownloadGoldInfo(goldResultDictionary);
             //WriteGoldToCSV(goldResultDictionary);
             DownloadCryptoCurrencyInfo(currencyList, resultDictionary);
-            //WriteToCSV(currencyList, resultDictionary);
+            WriteToCSV(currencyList, resultDictionary);
             //WriteToConsole(currencyList, resultDictionary);
-            WriteCurrencyToCSV("BTC", resultDictionary["BTC"]);
+            WriteCurrencyToCSV("ETH", resultDictionary["ETH"]);
         }
         private static void DownloadGoldInfo(Dictionary<string, MetalsApiResponse> resultDictionary)
         {
@@ -79,6 +80,7 @@ namespace CryptoCoinSaver
                 response.Close();
 
                 Console.WriteLine($"Десериализация завершена: {currency}");
+                Thread.Sleep(2000);
             }
         }
 
@@ -149,18 +151,18 @@ namespace CryptoCoinSaver
         public static void WriteToCSV(string[] currencyList, Dictionary<string, ApiResponse> resultDictionary)
         {
             string baseDirectory = AppDomain.CurrentDomain.BaseDirectory;
-            string writePath = @$"{baseDirectory}\CryptoCoinHigh.csv";
+            string writePath = @$"{baseDirectory}\CryptoCoinClose.csv";
 
-            var dateForCycle = DateTime.Now.AddDays(-1);
+            var lastDay = DateTime.Now.AddDays(-1);
             var firstDay = DateTime.Now.AddDays(-999);
             try
             {
                 using (StreamWriter sw = new StreamWriter(writePath, false, System.Text.Encoding.Default))
                 {
                     sw.WriteLine($"Date,{string.Join(",", currencyList)}");
-                    while (dateForCycle > firstDay)
+                    while (lastDay > firstDay)
                     {
-                        var formattedDateForCycle = dateForCycle.ToString("yyyy-MM-dd");
+                        var formattedDateForCycle = firstDay.ToString("yyyy-MM-dd");
                         sw.Write(formattedDateForCycle);
 
                         foreach (var currency in currencyList)
@@ -172,12 +174,12 @@ namespace CryptoCoinSaver
                             }
                             else
                             {
-                                var stringToWrite = resultDictionary[currency].mainData[formattedDateForCycle].high.ToString();
+                                var stringToWrite = resultDictionary[currency].mainData[formattedDateForCycle].close.ToString();
                                 sw.Write(stringToWrite.Replace(",", "."));
                             }
                         }
                         sw.WriteLine();
-                        dateForCycle = dateForCycle.AddDays(-1);
+                        firstDay = firstDay.AddDays(1);
                     }
                 }
                 Console.WriteLine("done");
